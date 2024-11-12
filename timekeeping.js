@@ -73,6 +73,12 @@ function logTime(project, hours, date) {
 
   timeData[project][dateString] += hours;
 
+  // Ensure the hours are not negative unless explicitly allowed
+  if (timeData[project][dateString] < 0) {
+    console.error('Total hours cannot be negative. Adjust the hours accordingly.');
+    process.exit(1);
+  }
+
   try {
     fs.writeFileSync(dataPath, JSON.stringify(timeData, null, 2), 'utf8');
     console.log(`Logged ${hours} hours to project "${project}" on ${dateString}.`);
