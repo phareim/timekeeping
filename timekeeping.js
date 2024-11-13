@@ -1,30 +1,48 @@
 #!/usr/bin/env node
 
-const { Command } = require('commander');
-const fs = require('fs');
-const path = require('path');
+const { Command } = require("commander");
+const fs = require("fs");
+const path = require("path");
 
 const program = new Command();
 
+program.version("1.0.0").description("A simple CLI for timekeeping");
+
 program
-  .version('1.0.0')
-  .description('A simple CLI for timekeeping')
-  .option('-h, --hours <number>', 'Number of hours to log', parseFloat)
-  .option('-p, --project <name>', 'Project name')
-  .option('-d, --date [date]', 'Date in MM.DD or YYYY.MM.DD format')
+  .command("log")
+  .description("Log hours to a project")
+  .option("-h, --hours <number>", "Number of hours to log", parseFloat)
+  .option("-p, --project <name>", "Project name")
+  .option("-d, --date [date]", "Date in MM.DD or YYYY.MM.DD format")
   .action((options) => {
-    if (!options.hours || !options.project) {
-      console.error('Both --hours and --project are required.');
+    if (options.hours == null || !options.project) {
+      console.error("Both --hours and --project are required.");
       process.exit(1);
     }
 
     const date = options.date ? parseDate(options.date) : new Date();
     if (!date) {
-      console.error('Invalid date format. Please use MM.DD or YYYY.MM.DD.');
+      console.error("Invalid date format. Please use MM.DD or YYYY.MM.DD.");
       process.exit(1);
     }
 
     logTime(options.project, options.hours, date);
+  });
+
+program
+  .command("report")
+  .description("Print the timekeeping report")
+  .action(() => {
+    printReport();
+  });
+
+program
+  .command("summary")
+  .description(
+    "Print summary of dates in the current month with less than 7.5 hours logged"
+  )
+  .action(() => {
+    printSummary();
   });
 
 program.parse(process.argv);
@@ -37,10 +55,10 @@ function parseDate(dateStr) {
 
   let year, month, day;
   if (dateStr.length === 5) {
-    [month, day] = dateStr.split('.').map(Number);
+    [month, day] = dateStr.split(".").map(Number);
     year = new Date().getFullYear();
   } else {
-    [year, month, day] = dateStr.split('.').map(Number);
+    [year, month, day] = dateStr.split(".").map(Number);
   }
 
   // Adjust month for JavaScript Date (0-indexed)
@@ -50,19 +68,19 @@ function parseDate(dateStr) {
 }
 
 function logTime(project, hours, date) {
-  const dataPath = path.join(__dirname, 'timekeeping.json');
+  const dataPath = path.join(__dirname, "timekeeping.json");
   let timeData = {};
 
   if (fs.existsSync(dataPath)) {
     try {
-      timeData = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
+      timeData = JSON.parse(fs.readFileSync(dataPath, "utf8"));
     } catch (error) {
-      console.error('Error reading timekeeping data:', error);
+      console.error("Error reading timekeeping data:", error);
       process.exit(1);
     }
   }
 
-  const dateString = date.toISOString().split('T');
+  const dateString = date.toISOString().split("T")[0];
   if (!timeData[project]) {
     timeData[project] = {};
   }
@@ -73,17 +91,117 @@ function logTime(project, hours, date) {
 
   timeData[project][dateString] += hours;
 
-  // Ensure the hours are not negative unless explicitly allowed
-  if (timeData[project][dateString] < 0) {
-    console.error('Total hours cannot be negative. Adjust the hours accordingly.');
+  // Removed the check for negative total hours
+
+  try {
+    fs.writeFileSync(dataPath, JSON.stringify(timeData, null, 2), "utf8");
+    console.log(
+      `Logged ${hours} hours to project "${project}" on ${dateString}.`
+    );
+  } catch (error) {
+    console.error("Error writing timekeeping data:", error);
     process.exit(1);
+  }
+}
+
+function printReport() {
+  const dataPath = path.join(__dirname, "timekeeping.json");
+  if (!fs.existsSync(dataPath)) {
+    console.log("No timekeeping data found.");
+    return;
   }
 
   try {
-    fs.writeFileSync(dataPath, JSON.stringify(timeData, null, 2), 'utf8');
-    console.log(`Logged ${hours} hours to project "${project}" on ${dateString}.`);
+    const timeData = JSON.parse(fs.readFileSync(dataPath, "utf8"));
+
+    console.log("Timekeeping Report:");
+    console.log("===================");
+    for (const project in timeData) {
+      console.log(`Project: ${project}`);
+      console.log("-------------------");
+      for (const date in timeData[project]) {
+        console.log(`  Date: ${date}, Hours: ${timeData[project][date]}`);
+      }
+      console.log();
+    }
   } catch (error) {
-    console.error('Error writing timekeeping data:', error);
-    process.exit(1);
+    console.error("Error reading timekeeping data:", error);
   }
+}
+
+function printSummary() {
+  const dataPath = path.join(__dirname, "timekeeping.json");
+  let timeData = {};
+
+  if (fs.existsSync(dataPath)) {
+    try {
+      timeData = JSON.parse(fs.readFileSync(dataPath, "utf8"));
+    } catch (error) {
+      console.error("Error reading timekeeping data:", error);
+      return;
+    }
+  }
+
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth(); // 0-based month
+
+  function getDaysInMonth(year, month) {
+    return new Date(year, month + 1, 0).getDate();
+  }
+
+  const daysInMonth = getDaysInMonth(currentYear, currentMonth);
+
+  console.log("\n======================================");
+  console.log(
+    `Summary for ${now.toLocaleString("default", {
+      month: "long",
+    })} ${currentYear}:`
+  );
+  console.log("======================================\n");
+  let sumHours = 0;
+  for (let day = 1; day <= daysInMonth; day++) {
+    const date = new Date(currentYear, currentMonth, day);
+    const dayOfWeek = date.getDay(); // 0 is Sunday, 6 is Saturday
+
+    // Format date as YYYY-MM-DD
+    const dateString = date.toISOString().split("T")[0];
+
+    // Sum total hours for this date across all projects
+    let totalHours = 0;
+    let projects = "";
+    for (const project in timeData) {
+      if (timeData[project][dateString]) {
+        totalHours += timeData[project][dateString];
+        if (projects.indexOf(project) === -1) {
+          if (projects.length > 0) {
+            projects += ", ";
+          }
+          projects += project;
+        }
+      }
+    }
+
+    // Determine the color based on the conditions
+    let colorStart = "";
+    let colorEnd = "\x1b[0m"; // Reset color
+
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
+      // Saturdays and Sundays in cyan
+      colorStart = "\x1b[36m"; // Cyan text
+    } else if (totalHours <= 0) {
+      colorStart = "\x1b[31m"; // Red text
+    } else if (totalHours < 7.5) {
+      // Weekdays with less than 7.5 hours in yellow
+      colorStart = "\x1b[33m"; // Yellow text
+    }
+    sumHours += totalHours;
+    console.log(
+      `${colorStart}${dateString}: ${totalHours} hours${colorEnd}`,
+      projects.length > 0 ? "-->" + projects : ""
+    );
+  }
+  console.log("======================================");
+  console.log(`Total hours logged: ${sumHours}`);
+  console.log("======================================\n");
 }
