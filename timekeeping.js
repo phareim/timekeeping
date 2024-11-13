@@ -80,7 +80,9 @@ function logTime(project, hours, date) {
     }
   }
 
-  const dateString = date.toISOString().split("T")[0];
+  // Use local date components to format the date string
+  const dateString = date.toLocaleDateString('en-CA'); // Formats date as YYYY-MM-DD
+
   if (!timeData[project]) {
     timeData[project] = {};
   }
@@ -164,8 +166,8 @@ function printSummary() {
     const date = new Date(currentYear, currentMonth, day);
     const dayOfWeek = date.getDay(); // 0 is Sunday, 6 is Saturday
 
-    // Format date as YYYY-MM-DD
-    const dateString = date.toISOString().split("T")[0];
+    // Format date as YYYY-MM-DD using local time
+    const dateString = date.toLocaleDateString('en-CA');
 
     // Sum total hours for this date across all projects
     let totalHours = 0;
@@ -173,7 +175,7 @@ function printSummary() {
     for (const project in timeData) {
       if (timeData[project][dateString]) {
         totalHours += timeData[project][dateString];
-        if (projects.indexOf(project) === -1) {
+        if (!projects.includes(project)) {
           if (projects.length > 0) {
             projects += ", ";
           }
@@ -198,7 +200,7 @@ function printSummary() {
     sumHours += totalHours;
     console.log(
       `${colorStart}${dateString}: ${totalHours} hours${colorEnd}`,
-      projects.length > 0 ? "-->" + projects : ""
+      projects.length > 0 ? "--> " + projects : ""
     );
   }
   console.log("======================================");
