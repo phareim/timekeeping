@@ -11,5 +11,8 @@
   "description": "",
   "dependencies": {
     "commander": "^12.1.0"
+  },
+  "bin": {
+    "timekeep": "./index.js"
   }
 }
