@@ -179,7 +179,7 @@ function printSummary() {
           if (projects.length > 0) {
             projects += ", ";
           }
-          projects += project;
+          projects += project+"("+timeData[project][dateString]+")";
         }
       }
     }
@@ -204,6 +204,6 @@ function printSummary() {
     );
   }
   console.log("======================================");
-  console.log(`Total billable hours logged: ${sumHours}`);
+  console.log(`Total billable hours logged: ${sumHours}.`);
   console.log("======================================\n");
 }
