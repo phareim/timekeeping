@@ -3,5 +3,4 @@ dist/
 .idea/
 .vscode/
 .DS_Store
-timekeepeing.json
 timekeeping.json
