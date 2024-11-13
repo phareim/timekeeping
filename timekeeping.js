@@ -199,11 +199,11 @@ function printSummary() {
     }
     sumHours += totalHours;
     console.log(
-      `${colorStart}${dateString}: ${totalHours} hours${colorEnd}`,
-      projects.length > 0 ? "--> " + projects : ""
+      `${colorStart}${dateString}: ${totalHours} hours`,
+      projects.length > 0 ? "--> " + projects : "", ` ${colorEnd}`
     );
   }
   console.log("======================================");
-  console.log(`Total hours logged: ${sumHours}`);
+  console.log(`Total billable hours logged: ${sumHours}`);
   console.log("======================================\n");
 }
