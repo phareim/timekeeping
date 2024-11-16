@@ -81,7 +81,7 @@ function logTime(project, hours, date) {
   }
 
   // Use local date components to format the date string
-  const dateString = date.toLocaleDateString('en-CA'); // Formats date as YYYY-MM-DD
+  const dateString = date.toLocaleDateString("en-CA"); // Formats date as YYYY-MM-DD
 
   if (!timeData[project]) {
     timeData[project] = {};
@@ -92,8 +92,6 @@ function logTime(project, hours, date) {
   }
 
   timeData[project][dateString] += hours;
-
-  // Removed the check for negative total hours
 
   try {
     fs.writeFileSync(dataPath, JSON.stringify(timeData, null, 2), "utf8");
@@ -116,16 +114,51 @@ function printReport() {
   try {
     const timeData = JSON.parse(fs.readFileSync(dataPath, "utf8"));
 
-    console.log("Timekeeping Report:");
-    console.log("===================");
+    const now = new Date();
+    const weekdaysThisMonth = getWeekdaysInMonth(now.getFullYear(), now.getMonth());
+    const totalBillableHours = weekdaysThisMonth * 7.5;
+
+    // Calculate total logged hours
+    let totalLoggedHours = 0;
     for (const project in timeData) {
+      for (const date in timeData[project]) {
+        totalLoggedHours += timeData[project][date];
+      }
+    }
+
+    console.log("Timekeeping Report:");
+    console.log("===================\n");
+    for (const project in timeData) {
+      let projectTotal = 0;
+      for (const date in timeData[project]) {
+        projectTotal += timeData[project][date];
+      }
+      const billablePercentage = ((projectTotal / totalBillableHours) * 100).toFixed(2);
+      const loggedPercentage = ((projectTotal / totalLoggedHours) * 100).toFixed(2);
+
       console.log(`Project: ${project}`);
       console.log("-------------------");
-      for (const date in timeData[project]) {
-        console.log(`  Date: ${date}, Hours: ${timeData[project][date]}`);
-      }
+      console.log(`\x1b[33m  Total Hours:\t\t\t ${projectTotal} hours\x1b[0m`);
+      console.log(`  Percentage of Billable Hours:\t ${billablePercentage}%`);
+      console.log(`  Percentage of Logged Hours:\t ${loggedPercentage}%`);
       console.log();
     }
+
+    // Calculate billable percentage so far this month
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const daysElapsed = Math.floor((now - startOfMonth) / (1000 * 60 * 60 * 24)) + 1;
+    const weekdaysElapsed = Array.from({ length: daysElapsed })
+      .map((_, i) => new Date(now.getFullYear(), now.getMonth(), i + 1))
+      .filter((date) => date.getDay() !== 0 && date.getDay() !== 6).length;
+    const billableHoursSoFar = weekdaysElapsed * 7.5;
+
+    const billablePercentageSoFar = ((totalLoggedHours / billableHoursSoFar) * 100).toFixed(2);
+
+    console.log("===================");
+    console.log(
+      `Billable Percentage So Far This Month: ${billablePercentageSoFar}%`
+    );
+    console.log("===================\n");
   } catch (error) {
     console.error("Error reading timekeeping data:", error);
   }
@@ -167,7 +200,7 @@ function printSummary() {
     const dayOfWeek = date.getDay(); // 0 is Sunday, 6 is Saturday
 
     // Format date as YYYY-MM-DD using local time
-    const dateString = date.toLocaleDateString('en-CA');
+    const dateString = date.toLocaleDateString("en-CA");
 
     // Sum total hours for this date across all projects
     let totalHours = 0;
@@ -179,7 +212,7 @@ function printSummary() {
           if (projects.length > 0) {
             projects += ", ";
           }
-          projects += project+"("+timeData[project][dateString]+")";
+          projects += `${project}(${timeData[project][dateString]})`;
         }
       }
     }
@@ -199,11 +232,27 @@ function printSummary() {
     }
     sumHours += totalHours;
     console.log(
-      `${colorStart}${dateString}: ${totalHours.toFixed(1).padStart(4, ' ')} hours`,
-      projects.length > 0 ? "\t--> " + projects : "", ` ${colorEnd}`
+      `${colorStart}${dateString}: ${totalHours.toFixed(1).padStart(4, " ")} hours`,
+      projects.length > 0 ? "\t--> " + projects : "",
+      `${colorEnd}`
     );
   }
   console.log("\n======================================");
   console.log(`Total billable hours logged: ${sumHours}.`);
   console.log("======================================\n");
+}
+
+function getWeekdaysInMonth(year, month) {
+  const start = new Date(year, month, 1);
+  const end = new Date(year, month + 1, 0);
+  let weekdays = 0;
+
+  for (let day = start; day <= end; day.setDate(day.getDate() + 1)) {
+    const dayOfWeek = day.getDay();
+    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+      weekdays++;
+    }
+  }
+
+  return weekdays;
 }
