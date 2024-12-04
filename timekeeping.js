@@ -229,6 +229,9 @@ function printSummary() {
     } else if (totalHours < 7.5) {
       // Weekdays with less than 7.5 hours in yellow
       colorStart = "\x1b[33m"; // Yellow text
+    } else if (totalHours > 7.5) {
+      // Weekdays with less than 7.5 hours in yellow
+      colorStart = "\x1b[32m"; // Green text
     }
     sumHours += totalHours;
     console.log(
