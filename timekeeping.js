@@ -3,6 +3,23 @@
 const { Command } = require("commander");
 const fs = require("fs");
 const path = require("path");
+const { initializeApp } = require('firebase/app');
+const { getDatabase, ref, set, get, child } = require('firebase/database');
+
+// Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyA8jxsHi70N1aHQtqNHDjgwy-VsXu0Kvcw",
+  authDomain: "timekeep-2b61b.firebaseapp.com",
+  databaseURL: "https://timekeep-2b61b-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "timekeep-2b61b",
+  storageBucket: "timekeep-2b61b.firebasestorage.app",
+  messagingSenderId: "418981440882",
+  appId: "1:418981440882:web:bd9c9baff20946817b41eb"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const database = getDatabase(app);
 
 const program = new Command();
 
@@ -14,7 +31,7 @@ program
   .option("-h, --hours <number>", "Number of hours to log", parseFloat)
   .option("-p, --project <name>", "Project name")
   .option("-d, --date [date]", "Date in MM.DD or YYYY.MM.DD format")
-  .action((options) => {
+  .action(async (options) => {
     if (options.hours == null || !options.project) {
       console.error("Both --hours and --project are required.");
       process.exit(1);
@@ -26,7 +43,7 @@ program
       process.exit(1);
     }
 
-    logTime(options.project, options.hours, date);
+    await logTime(options.project, options.hours, date);
   });
 
 program
@@ -34,8 +51,8 @@ program
   .description("Print the timekeeping report")
   .option("-m, --month <month>", "Month number (1-12) to show report for")
   .option("-c, --complete", "Show complete history for all time")
-  .action((options) => {
-    printReport(options.month, options.complete);
+  .action(async (options) => {
+    await printReport(options.month, options.complete);
   });
 
 program
@@ -44,8 +61,44 @@ program
     "Print summary of dates in the current month with less than 7.5 hours logged"
   )
   .option("-m, --month <month>", "Month number (1-12) to show summary for")
-  .action((options) => {
-    printSummary(options.month);
+  .action(async (options) => {
+    await printSummary(options.month);
+  });
+
+program
+  .command("import")
+  .description("Import data from local timekeeping.json file to Firebase")
+  .action(async () => {
+    try {
+      const dataPath = path.join(__dirname, "timekeeping.json");
+      
+      if (!fs.existsSync(dataPath)) {
+        console.error("No local timekeeping.json file found.");
+        return;
+      }
+
+      // Les lokal fil
+      const localData = JSON.parse(fs.readFileSync(dataPath, "utf8"));
+      
+      // Hent eksisterende data fra Firebase
+      const dbRef = ref(database);
+      const snapshot = await get(child(dbRef, 'timeData'));
+      const existingData = snapshot.exists() ? snapshot.val() : {};
+
+      // Slå sammen data (eksisterende Firebase-data beholdes hvis det ikke overskrives)
+      const mergedData = { ...existingData, ...localData };
+
+      // Last opp til Firebase
+      await set(ref(database, 'timeData'), mergedData);
+      console.log("Successfully imported local data to Firebase!");
+      
+      // Lag backup av lokal fil
+      const backupPath = path.join(__dirname, `timekeeping_backup_${new Date().toISOString().replace(/[:.]/g, '-')}.json`);
+      fs.writeFileSync(backupPath, JSON.stringify(localData, null, 2), "utf8");
+      console.log(`Local file backed up to: ${backupPath}`);
+    } catch (error) {
+      console.error("Error importing data:", error);
+    }
   });
 
 program.parse(process.argv);
@@ -74,52 +127,46 @@ function parseDate(dateStr) {
   return new Date(year, month, day);
 }
 
-function logTime(project, hours, date) {
-  const dataPath = path.join(__dirname, "timekeeping.json");
-  let timeData = {};
-
-  if (fs.existsSync(dataPath)) {
-    try {
-      timeData = JSON.parse(fs.readFileSync(dataPath, "utf8"));
-    } catch (error) {
-      console.error("Error reading timekeeping data:", error);
-      process.exit(1);
-    }
-  }
-
-  // Use local date components to format the date string
-  const dateString = date.toLocaleDateString("en-CA"); // Formats date as YYYY-MM-DD
-
-  if (!timeData[project]) {
-    timeData[project] = {};
-  }
-
-  if (!timeData[project][dateString]) {
-    timeData[project][dateString] = 0;
-  }
-
-  timeData[project][dateString] += hours;
-
+async function logTime(project, hours, date) {
   try {
-    fs.writeFileSync(dataPath, JSON.stringify(timeData, null, 2), "utf8");
-    console.log(
-      `Logged ${hours} hours to project "${project}" on ${dateString}.`
-    );
+    const dateString = date.toLocaleDateString("en-CA"); // Formats date as YYYY-MM-DD
+    
+    // Hent eksisterende data først
+    const dbRef = ref(database);
+    const snapshot = await get(child(dbRef, 'timeData'));
+    let timeData = snapshot.exists() ? snapshot.val() : {};
+
+    // Oppdater eller opprett prosjekt og dato
+    if (!timeData[project]) {
+      timeData[project] = {};
+    }
+    if (!timeData[project][dateString]) {
+      timeData[project][dateString] = 0;
+    }
+    timeData[project][dateString] += hours;
+
+    // Lagre til Firebase
+    await set(ref(database, 'timeData'), timeData);
+    console.log(`Logged ${hours} hours to project "${project}" on ${dateString}.`);
   } catch (error) {
     console.error("Error writing timekeeping data:", error);
     process.exit(1);
   }
 }
 
-function printReport(monthOption, showComplete) {
-  const dataPath = path.join(__dirname, "timekeeping.json");
-  if (!fs.existsSync(dataPath)) {
-    console.log("No timekeeping data found.");
-    return;
-  }
-
+async function printReport(monthOption, showComplete) {
   try {
-    const timeData = JSON.parse(fs.readFileSync(dataPath, "utf8"));
+    // Hent data fra Firebase
+    const dbRef = ref(database);
+    const snapshot = await get(child(dbRef, 'timeData'));
+    
+    if (!snapshot.exists()) {
+      console.log("No timekeeping data found.");
+      return;
+    }
+
+    const timeData = snapshot.val();
+
     const now = new Date();
     const currentYear = now.getFullYear();
     const selectedMonth = monthOption ? parseInt(monthOption) - 1 : now.getMonth();
@@ -207,86 +254,89 @@ function printReport(monthOption, showComplete) {
   }
 }
 
-function printSummary(monthOption) {
-  const dataPath = path.join(__dirname, "timekeeping.json");
-  let timeData = {};
-
-  if (fs.existsSync(dataPath)) {
-    try {
-      timeData = JSON.parse(fs.readFileSync(dataPath, "utf8"));
-    } catch (error) {
-      console.error("Error reading timekeeping data:", error);
+async function printSummary(monthOption) {
+  try {
+    // Hent data fra Firebase
+    const dbRef = ref(database);
+    const snapshot = await get(child(dbRef, 'timeData'));
+    
+    if (!snapshot.exists()) {
+      console.log("No timekeeping data found.");
       return;
     }
-  }
 
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  const selectedMonth = monthOption ? parseInt(monthOption) - 1 : now.getMonth(); // 0-based month
+    const timeData = snapshot.val();
 
-  if (selectedMonth < 0 || selectedMonth > 11) {
-    console.error("Invalid month. Please specify a month between 1 and 12.");
-    return;
-  }
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const selectedMonth = monthOption ? parseInt(monthOption) - 1 : now.getMonth(); // 0-based month
 
-  const daysInMonth = getDaysInMonth(currentYear, selectedMonth);
+    if (selectedMonth < 0 || selectedMonth > 11) {
+      console.error("Invalid month. Please specify a month between 1 and 12.");
+      return;
+    }
 
-  console.log("\n======================================");
-  console.log(
-    `Summary for ${new Date(currentYear, selectedMonth, 1).toLocaleString("default", {
-      month: "long",
-    })} ${currentYear}:`
-  );
-  console.log("======================================\n");
-  let sumHours = 0;
-  for (let day = 1; day <= daysInMonth; day++) {
-    const date = new Date(currentYear, selectedMonth, day);
-    const dayOfWeek = date.getDay(); // 0 is Sunday, 6 is Saturday
+    const daysInMonth = getDaysInMonth(currentYear, selectedMonth);
 
-    // Format date as YYYY-MM-DD using local time
-    const dateString = date.toLocaleDateString("en-CA");
+    console.log("\n======================================");
+    console.log(
+      `Summary for ${new Date(currentYear, selectedMonth, 1).toLocaleString("default", {
+        month: "long",
+      })} ${currentYear}:`
+    );
+    console.log("======================================\n");
+    let sumHours = 0;
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(currentYear, selectedMonth, day);
+      const dayOfWeek = date.getDay(); // 0 is Sunday, 6 is Saturday
 
-    // Sum total hours for this date across all projects
-    let totalHours = 0;
-    let projects = "";
-    for (const project in timeData) {
-      if (timeData[project][dateString]) {
-        totalHours += timeData[project][dateString];
-        if (!projects.includes(project)) {
-          if (projects.length > 0) {
-            projects += ", ";
+      // Format date as YYYY-MM-DD using local time
+      const dateString = date.toLocaleDateString("en-CA");
+
+      // Sum total hours for this date across all projects
+      let totalHours = 0;
+      let projects = "";
+      for (const project in timeData) {
+        if (timeData[project][dateString]) {
+          totalHours += timeData[project][dateString];
+          if (!projects.includes(project)) {
+            if (projects.length > 0) {
+              projects += ", ";
+            }
+            projects += `${project}(${timeData[project][dateString]})`;
           }
-          projects += `${project}(${timeData[project][dateString]})`;
         }
       }
-    }
 
-    // Determine the color based on the conditions
-    let colorStart = "";
-    let colorEnd = "\x1b[0m"; // Reset color
+      // Determine the color based on the conditions
+      let colorStart = "";
+      let colorEnd = "\x1b[0m"; // Reset color
 
-    if (dayOfWeek === 0 || dayOfWeek === 6) {
-      // Saturdays and Sundays in cyan
-      colorStart = "\x1b[36m"; // Cyan text
-    } else if (totalHours <= 0) {
-      colorStart = "\x1b[31m"; // Red text
-    } else if (totalHours < 7.5) {
-      // Weekdays with less than 7.5 hours in yellow
-      colorStart = "\x1b[33m"; // Yellow text
-    } else if (totalHours > 7.5) {
-      // Weekdays with less than 7.5 hours in yellow
-      colorStart = "\x1b[32m"; // Green text
+      if (dayOfWeek === 0 || dayOfWeek === 6) {
+        // Saturdays and Sundays in cyan
+        colorStart = "\x1b[36m"; // Cyan text
+      } else if (totalHours <= 0) {
+        colorStart = "\x1b[31m"; // Red text
+      } else if (totalHours < 7.5) {
+        // Weekdays with less than 7.5 hours in yellow
+        colorStart = "\x1b[33m"; // Yellow text
+      } else if (totalHours > 7.5) {
+        // Weekdays with less than 7.5 hours in yellow
+        colorStart = "\x1b[32m"; // Green text
+      }
+      sumHours += totalHours;
+      console.log(
+        `${colorStart}${dateString}: ${totalHours.toFixed(1).padStart(4, " ")} hours`,
+        projects.length > 0 ? "\t--> " + projects : "",
+        `${colorEnd}`
+      );
     }
-    sumHours += totalHours;
-    console.log(
-      `${colorStart}${dateString}: ${totalHours.toFixed(1).padStart(4, " ")} hours`,
-      projects.length > 0 ? "\t--> " + projects : "",
-      `${colorEnd}`
-    );
+    console.log("\n======================================");
+    console.log(`Total billable hours logged: ${sumHours}.`);
+    console.log("======================================\n");
+  } catch (error) {
+    console.error("Error reading timekeeping data:", error);
   }
-  console.log("\n======================================");
-  console.log(`Total billable hours logged: ${sumHours}.`);
-  console.log("======================================\n");
 }
 
 function getWeekdaysInMonth(year, month) {
