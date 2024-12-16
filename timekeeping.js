@@ -41,8 +41,9 @@ program
   .description(
     "Print summary of dates in the current month with less than 7.5 hours logged"
   )
-  .action(() => {
-    printSummary();
+  .option("-m, --month <month>", "Month number (1-12) to show summary for")
+  .action((options) => {
+    printSummary(options.month);
   });
 
 program.parse(process.argv);
@@ -164,7 +165,7 @@ function printReport() {
   }
 }
 
-function printSummary() {
+function printSummary(monthOption) {
   const dataPath = path.join(__dirname, "timekeeping.json");
   let timeData = {};
 
@@ -179,24 +180,29 @@ function printSummary() {
 
   const now = new Date();
   const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth(); // 0-based month
+  const selectedMonth = monthOption ? parseInt(monthOption) - 1 : now.getMonth(); // 0-based month
+
+  if (selectedMonth < 0 || selectedMonth > 11) {
+    console.error("Invalid month. Please specify a month between 1 and 12.");
+    return;
+  }
 
   function getDaysInMonth(year, month) {
     return new Date(year, month + 1, 0).getDate();
   }
 
-  const daysInMonth = getDaysInMonth(currentYear, currentMonth);
+  const daysInMonth = getDaysInMonth(currentYear, selectedMonth);
 
   console.log("\n======================================");
   console.log(
-    `Summary for ${now.toLocaleString("default", {
+    `Summary for ${new Date(currentYear, selectedMonth, 1).toLocaleString("default", {
       month: "long",
     })} ${currentYear}:`
   );
   console.log("======================================\n");
   let sumHours = 0;
   for (let day = 1; day <= daysInMonth; day++) {
-    const date = new Date(currentYear, currentMonth, day);
+    const date = new Date(currentYear, selectedMonth, day);
     const dayOfWeek = date.getDay(); // 0 is Sunday, 6 is Saturday
 
     // Format date as YYYY-MM-DD using local time
