@@ -28,6 +28,7 @@ async function printSummary(database, monthOption) {
     );
     console.log("======================================\n");
     let sumHours = 0;
+    let sumPotentialHours = 0;
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(currentYear, selectedMonth, day);
       const dayOfWeek = date.getDay(); // 0 is Sunday, 6 is Saturday
@@ -49,32 +50,31 @@ async function printSummary(database, monthOption) {
           }
         }
       }
-
-      // Determine the color based on the conditions
       let colorStart = "";
-      let colorEnd = "\x1b[0m"; // Reset color
+      let colorReset = "\x1b[0m";
 
-      if (dayOfWeek === 0 || dayOfWeek === 6) {
-        // Saturdays and Sundays in cyan
-        colorStart = "\x1b[36m"; // Cyan text
+    const weekend = dayOfWeek === 0 || dayOfWeek === 6;
+      if (weekend) {
+        colorStart = "\x1b[36m";
       } else if (totalHours <= 0) {
-        colorStart = "\x1b[31m"; // Red text
+        colorStart = "\x1b[31m";
       } else if (totalHours < 7.5) {
-        // Weekdays with less than 7.5 hours in yellow
-        colorStart = "\x1b[33m"; // Yellow text
+        colorStart = "\x1b[33m";
       } else if (totalHours > 7.5) {
-        // Weekdays with more than 7.5 hours in green
-        colorStart = "\x1b[32m"; // Green text
+        colorStart = "\x1b[32m";
       }
       sumHours += totalHours;
+      sumPotentialHours += weekend ? 0 : 7.5;
       console.log(
         `${colorStart}${dateString}: ${totalHours.toFixed(1).padStart(4, " ")} hours`,
         projects.length > 0 ? "\t--> " + projects : "",
-        `${colorEnd}`
+        `${colorReset}`
       );
     }
     console.log("\n======================================");
     console.log(`Total billable hours logged: ${sumHours}.`);
+    console.log(`Total weekday working hours: ${sumPotentialHours.toFixed(1)}.`);
+    console.log(`Billable percentage: ${((sumHours / sumPotentialHours) * 100).toFixed(1)}%.`);
     console.log("======================================\n");
     exitGracefully();
   } catch (error) {
