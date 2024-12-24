@@ -21,7 +21,7 @@ A simple command-line interface (CLI) tool for logging hours to projects. This t
 
 3. **Install dependencies**:
    ```bash
-   npm install
+   npm install 
    ```
 
 4. **Make the script executable**:
@@ -29,11 +29,15 @@ A simple command-line interface (CLI) tool for logging hours to projects. This t
    chmod +x timekeeping.js
    ```
 
+5. **Install globally**:
+   ```bash
+   npm i -g
+   ```
 ## Usage
 
 Run the CLI tool using the following command:
 ```bash
-./timekeeping.js [options]
+~ timekeep --help
 ```
 
 ## Options
