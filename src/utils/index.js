@@ -40,8 +40,7 @@ function getWeekdaysInMonth(year, month) {
 }
 
 async function getTimeData(database) {
-  const dbRef = ref(database);
-  const snapshot = await get(child(dbRef, 'timeData'));
+  const snapshot = await database.ref('timeData').get();
   return snapshot.exists() ? snapshot.val() : null;
 }
 

@@ -1,6 +1,5 @@
 const fs = require("fs");
 const path = require("path");
-const { ref, set } = require('firebase/database');
 const { getTimeData, exitGracefully } = require('../utils');
 
 async function importData(database) {
@@ -22,7 +21,7 @@ async function importData(database) {
     const mergedData = { ...existingData, ...localData };
 
     // Last opp til Firebase
-    await set(ref(database, 'timeData'), mergedData);
+    await database.ref('timeData').set(mergedData);
     console.log("Successfully imported local data to Firebase!");
     
     // Lag backup av lokal fil

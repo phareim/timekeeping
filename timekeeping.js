@@ -1,23 +1,19 @@
 #!/usr/bin/env node
 
 const { Command } = require("commander");
-const { initializeApp } = require('firebase/app');
-const { getDatabase } = require('firebase/database');
+const admin = require('firebase-admin');
+const path = require('path');
+const os = require('os');
 
-// Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyA8jxsHi70N1aHQtqNHDjgwy-VsXu0Kvcw",
-  authDomain: "timekeep-2b61b.firebaseapp.com",
-  databaseURL: "https://timekeep-2b61b-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "timekeep-2b61b",
-  storageBucket: "timekeep-2b61b.firebasestorage.app",
-  messagingSenderId: "418981440882",
-  appId: "1:418981440882:web:bd9c9baff20946817b41eb"
-};
+// Initialize Firebase Admin
+const serviceAccount = require(path.join(os.homedir(), '.timekeeping', 'service-account.json'));
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const database = getDatabase(app);
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+  databaseURL: "https://timekeep-2b61b-default-rtdb.europe-west1.firebasedatabase.app"
+});
+
+const database = admin.database();
 
 // Set up Commander
 const program = new Command();
