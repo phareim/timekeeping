@@ -1,4 +1,20 @@
 const { getDatabase, ref, get, child } = require('firebase/database');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
+
+const CONFIG_FILE = path.join(os.homedir(), '.timekeeping', 'config.json');
+
+function getConfig() {
+  try {
+    if (fs.existsSync(CONFIG_FILE)) {
+      return JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+    }
+  } catch (error) {
+    console.error('Error reading config file:', error);
+  }
+  return {};
+}
 
 function getDaysInMonth(year, month) {
   return new Date(year, month + 1, 0).getDate();
@@ -56,5 +72,6 @@ module.exports = {
   parseDate,
   getWeekdaysInMonth,
   getTimeData,
-  exitGracefully
+  exitGracefully,
+  getConfig
 }; 

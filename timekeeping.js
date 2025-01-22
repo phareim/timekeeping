@@ -1,5 +1,15 @@
 #!/usr/bin/env node
 
+// Skjul punycode-advarsel
+process.removeAllListeners('warning');
+process.on('warning', (warning) => {
+  if (warning.name === 'DeprecationWarning' && 
+      warning.message.includes('The `punycode` module is deprecated')) {
+    return;
+  }
+  console.warn(warning.name, warning.message);
+});
+
 const { Command } = require("commander");
 const admin = require('firebase-admin');
 const path = require('path');
