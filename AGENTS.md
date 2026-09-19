@@ -1,34 +1,14 @@
-# Agent Instructions
+# Timekeeping
 
-Read `./CLAUDE.md` before making substantial changes in this repository.
+CLI tool for logging and tracking work hours.
 
-If a parent directory also contains `AGENTS.md` or `CLAUDE.md`, follow the more local file when instructions conflict.
+## Tech Stack
 
+- Node.js, Commander.js
+- Firebase / Firebase Admin SDK for persistence
 
-## Working Agreement
+## Commands
 
-- Follow existing project conventions before introducing new patterns.
-- Run the most relevant tests or checks for the files you change.
-- Update docs when changing architecture, APIs, configuration, operational workflows, or deployment behavior.
-- Do not overwrite unrelated local changes.
-
-## Repo Notes
-
-Replace this section with repo-specific instructions such as:
-
-- preferred dev and test commands
-- deployment steps
-- code style constraints
-- architectural guardrails
-- directories that need extra care
-- services or environment dependencies
-
-## Suggested Minimal Overrides
-
-Add only the rules that are specific enough to affect agent behavior, for example:
-
-- `npm test` is required for backend changes
-- `flutter analyze` and `flutter test` are required for app changes
-- update `database/schema.sql` together with migrations
-- avoid editing generated files under `dist/`
-
+- `npm install` — install dependencies
+- `npm i -g` — install globally
+- `timekeep --help` — view available options
